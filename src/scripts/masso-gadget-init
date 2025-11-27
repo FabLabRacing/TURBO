@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+G=/sys/kernel/config/usb_gadget/masso
+
+modprobe libcomposite || true
+
+mkdir -p "$G"
+echo 0x1d6b > "$G/idVendor"
+echo 0x0104 > "$G/idProduct"
+echo 0x0100 > "$G/bcdDevice"
+echo 0x0200 > "$G/bcdUSB"
+
+mkdir -p "$G/strings/0x409"
+echo "MassoUSB-0001" > "$G/strings/0x409/serialnumber"
+echo "FabLab Racing" > "$G/strings/0x409/manufacturer"
+echo "MASSO USB" > "$G/strings/0x409/product"
+
+mkdir -p "$G/configs/c.1/strings/0x409"
+echo "Config 1" > "$G/configs/c.1/strings/0x409/configuration"
+echo 120 > "$G/configs/c.1/MaxPower"
+
+mkdir -p "$G/functions/mass_storage.usb0"
+echo 1 > "$G/functions/mass_storage.usb0/stall"
+echo 1 > "$G/functions/mass_storage.usb0/lun.0/removable"
+echo 0 > "$G/functions/mass_storage.usb0/lun.0/ro"
+touch "$G/functions/mass_storage.usb0/lun.0/file"
+
+ln -s "$G/functions/mass_storage.usb0" "$G/configs/c.1/"

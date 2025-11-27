@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+G=/sys/kernel/config/usb_gadget/masso
+if [ -d "$G" ]; then
+  echo "" | tee "$G/UDC" >/dev/null || true
+fi
+echo "Detached"
