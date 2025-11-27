@@ -49,111 +49,78 @@ No more walking back and forth.
 
 SSH into the Pi:
 
-```
 user: masso
 pass: masso
-```
 
 Run:
 
-```
 sudo apt update
 sudo apt upgrade -y
 sudo apt install -y nginx dosfstools util-linux rsync unzip python3 dnsmasq hostapd git unzip
 sudo useradd -r -s /bin/false filebrowser
 sudo reboot
-```
 
 ---
 
 # 2) Enable USB Gadget Mode
 
 Edit:
-
-### `/boot/firmware/config.txt`
-```
+### `/boot/firmware/config.txt` and ensure under `[all]` you have:
 [all]
 dtoverlay=dwc2,dr_mode=peripheral
-```
+sudo nano /boot/firmware/config.txt
 
 ### `/boot/firmware/cmdline.txt`
 Add **after `rootwait`**, keeping the file as **one line**:
-
-```
 modules-load=dwc2
-```
+sudo nano /boot/firmware/cmdline.txt
 
 Reboot and verify:
-
-```
 ls /sys/class/udc
 # Expect something like: 3f980000.usb
-```
 
 ---
 
 # 3) Install TURBO Bundle
 
 Copy the archive to the Pi and extract:
-
-```
 sudo tar --no-same-owner -xzf turbo_bundle_v1_0.tar.gz -C /
-```
 
 Make scripts executable:
-
-```
 sudo chmod +x /usr/local/bin/masso-attach \
               /usr/local/bin/masso-detach \
               /usr/local/bin/masso-commit \
               /usr/local/bin/masso-gadget-init \
               /usr/local/bin/masso-shim.py \
               /usr/local/bin/filebrowser
-```
 
 Set ownership:
-
-```
 sudo chown -R filebrowser:filebrowser /opt/filebrowser /opt/filebrowser/masso /opt/fbq-theme /usr/local/bin/filebrowser
-```
 
 Enable services:
-
-```
 sudo systemctl daemon-reload
 sudo systemctl enable filebrowser
 sudo systemctl start filebrowser
 sudo systemctl enable --now masso-shim
-
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo ln -sf /etc/nginx/sites-available/fbq /etc/nginx/sites-enabled/fbq
 sudo nginx -t && sudo systemctl reload nginx
-```
 
 ---
 
 # 4) Initialize USB Gadget & Create Initial Image
 
 One‑time gadget init:
-
-```
 sudo /usr/local/bin/masso-gadget-init
-```
 
 Create image storage:
-
-```
 sudo mkdir /opt/masso_images
 sudo fallocate -l 20G /opt/masso_images/massoA.img
 sudo mkfs.vfat -F32 -n MASSOUSB /opt/masso_images/massoA.img
 sudo ln -sf /opt/masso_images/massoA.img /opt/masso_images/current.img
-```
 
 Attach TURBO as a USB device:
-
-```
 sudo /usr/local/bin/masso-attach
-```
 
 MASSO should now detect a “MASSO USB” drive.
 
@@ -162,10 +129,7 @@ MASSO should now detect a “MASSO USB” drive.
 # 5) Using the TURBO Web Interface
 
 Open:
-
-```
 http://<pi-ip-address>/
-```
 
 You’ll see:
 
@@ -190,52 +154,33 @@ Typical workflow:
 
 Status:
 
-```
 curl -s http://127.0.0.1:8090/status | jq .
 journalctl -u masso-shim -n 80 --no-pager
-```
 
 USB Gadget state:
-
-```
 ls /sys/class/udc
 sudo cat /sys/kernel/config/usb_gadget/masso/UDC
 sudo cat /sys/kernel/config/usb_gadget/masso/functions/mass_storage.usb0/lun.0/file
-```
 
 Signatures:
-
-```
 cat /opt/masso_images/.last_commit.sig
-```
 
 Working signature:
-
-```
 bash -lc "cd /opt/filebrowser/masso; find . -type f -printf '%P\t%T@\t%s\n' | LC_ALL=C sort | sha256sum | cut -d' ' -f1"
-```
 
 If updates don't appear on MASSO:
-
 - Try Detach → Sync → Attach
 - Check kernel messages:
-
-```
-dmesg | tail -n 80
-```
+  dmesg | tail -n 80
 
 ---
 
 # 7) How the A/B Swap System Works
 
 Working directory:
-
-```
 /opt/filebrowser/masso
-```
 
 Sync to USB performs:
-
 1. Detach gadget  
 2. Build fresh FAT32 image in inactive slot  
 3. `rsync` content into image  
@@ -248,22 +193,13 @@ Sync to USB performs:
 # 8) Tuning & Customization
 
 Change USB image size:
-
-```
 /usr/local/bin/masso-commit
-```
 
 Theme customization:
-
-```
 /opt/fbq-theme/masso-forum.css
-```
 
 Sidebar card positioning:
-
-```
 /opt/fbq-theme/masso.js
-```
 
 ---
 
@@ -279,30 +215,20 @@ Sidebar card positioning:
 
 Restart services:
 
-```
 sudo systemctl restart masso-shim
 sudo systemctl reload nginx
-```
 
 Force rebuild:
-
-```
 sudo /usr/local/bin/masso-detach
 sudo /usr/local/bin/masso-commit
-```
+
 
 Clear signature:
-
-```
 sudo rm -f /opt/masso_images/.last_commit.sig
-```
 
 Clear stale loop devices:
-
-```
 sudo sh -c 'losetup -j /opt/masso_images/massoA.img | cut -d: -f1 | xargs -r losetup -d'
 sudo sh -c 'losetup -j /opt/masso_images/massoB.img | cut -d: -f1 | xargs -r losetup -d'
-```
 
 ---
 
