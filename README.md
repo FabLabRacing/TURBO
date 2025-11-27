@@ -17,6 +17,33 @@ No more walking back and forth.
 
 ---
 
+⚠️ Safety Notice – USB Sync While Machining
+
+This project currently does not detect when MASSO is running a G-code program directly from the USB device.
+
+Never click “Sync to USB” or “Detach” while the machine is cutting.
+
+Doing so is similar to unplugging a USB stick while MASSO is reading from it. This can cause the job to fail and may damage the part, tooling, or worse.
+
+Treat this device exactly like a normal USB flash drive: only update/sync when the machine is idle and not running a program from USB.
+
+---
+
+## Future Safety Enhancement – MASSO Run-State Interlock
+
+The current version does not automatically detect when MASSO is executing a G-code file from USB.
+A future version is planned that will:
+
+Use a dedicated MASSO output (“Program Running” or similar)
+
+Feed that signal into the Raspberry Pi via an optocoupler
+
+Block Sync/Detach while MASSO is running, regardless of network status
+
+This will provide a hardware-level safety interlock that is independent of MASSO firmware or APIs.
+
+---
+
 ## Features
 
 - Upload/delete files through a MASSO-themed web UI
@@ -153,7 +180,6 @@ Typical workflow:
 # 6) Health Checks & Troubleshooting
 
 Status:
-
 curl -s http://127.0.0.1:8090/status | jq .
 journalctl -u masso-shim -n 80 --no-pager
 
