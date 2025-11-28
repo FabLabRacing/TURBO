@@ -82,9 +82,13 @@ pass: masso
 Run:
 
 sudo apt update
+
 sudo apt upgrade -y
+
 sudo apt install -y nginx dosfstools util-linux rsync unzip python3 dnsmasq hostapd git unzip
+
 sudo useradd -r -s /bin/false filebrowser
+
 sudo reboot
 
 ---
