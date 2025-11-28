@@ -76,81 +76,76 @@ This will provide a hardware-level safety interlock that is independent of MASSO
 
 SSH into the Pi:
 
-user: masso
+user: masso  
 pass: masso
 
 Run:
 
-sudo apt update
-
-sudo apt upgrade -y
-
-sudo apt install -y nginx dosfstools util-linux rsync unzip python3 dnsmasq hostapd git unzip
-
-sudo useradd -r -s /bin/false filebrowser
-
+sudo apt update  
+sudo apt upgrade -y  
+sudo apt install -y nginx dosfstools util-linux rsync unzip python3 dnsmasq hostapd git unzip  
+sudo useradd -r -s /bin/false filebrowser  
 sudo reboot
 
 ---
 
 # 2) Enable USB Gadget Mode
 
-Edit:
-### `/boot/firmware/config.txt` and ensure under `[all]` you have:
-[all]
+Edit:  
+sudo nano /boot/firmware/config.txt and ensure under `[all]` you have:  
+[all]  
 dtoverlay=dwc2,dr_mode=peripheral
-sudo nano /boot/firmware/config.txt
 
-### `/boot/firmware/cmdline.txt`
-Add **after `rootwait`**, keeping the file as **one line**:
+sudo nano /boot/firmware/config.txt  
+/boot/firmware/cmdline.txt  
+Add **after `rootwait`**, keeping the file as **one line**:  
 modules-load=dwc2
-sudo nano /boot/firmware/cmdline.txt
 
-Reboot and verify:
-ls /sys/class/udc
-# Expect something like: 3f980000.usb
+Reboot and verify:  
+ls /sys/class/udc  
+Expect something like: 3f980000.usb
 
 ---
 
 # 3) Install TURBO Bundle
 
-Copy the archive to the Pi and extract:
-sudo tar --no-same-owner -xzf turbo_bundle_v1_0.tar.gz -C /
+Copy the archive to the Pi and extract:  
+sudo tar --no-same-owner -xzf turbo_bundle_v1_0.tar.gz -C / 
 
-Make scripts executable:
-sudo chmod +x /usr/local/bin/masso-attach \
-              /usr/local/bin/masso-detach \
-              /usr/local/bin/masso-commit \
-              /usr/local/bin/masso-gadget-init \
-              /usr/local/bin/masso-shim.py \
-              /usr/local/bin/filebrowser
+Make scripts executable:  
+sudo chmod +x /usr/local/bin/masso-attach \  
+              /usr/local/bin/masso-detach \  
+              /usr/local/bin/masso-commit \  
+              /usr/local/bin/masso-gadget-init \  
+              /usr/local/bin/masso-shim.py \  
+              /usr/local/bin/filebrowser  
 
-Set ownership:
+Set ownership:  
 sudo chown -R filebrowser:filebrowser /opt/filebrowser /opt/filebrowser/masso /opt/fbq-theme /usr/local/bin/filebrowser
 
-Enable services:
-sudo systemctl daemon-reload
-sudo systemctl enable filebrowser
-sudo systemctl start filebrowser
-sudo systemctl enable --now masso-shim
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo ln -sf /etc/nginx/sites-available/fbq /etc/nginx/sites-enabled/fbq
-sudo nginx -t && sudo systemctl reload nginx
+Enable services:  
+sudo systemctl daemon-reload  
+sudo systemctl enable filebrowser  
+sudo systemctl start filebrowser  
+sudo systemctl enable --now masso-shim  
+sudo rm -f /etc/nginx/sites-enabled/default  
+sudo ln -sf /etc/nginx/sites-available/fbq /etc/nginx/sites-enabled/fbq  
+sudo nginx -t && sudo systemctl reload nginx  
 
 ---
 
 # 4) Initialize USB Gadget & Create Initial Image
 
-One‑time gadget init:
+One‑time gadget init:  
 sudo /usr/local/bin/masso-gadget-init
 
-Create image storage:
-sudo mkdir /opt/masso_images
-sudo fallocate -l 20G /opt/masso_images/massoA.img
-sudo mkfs.vfat -F32 -n MASSOUSB /opt/masso_images/massoA.img
-sudo ln -sf /opt/masso_images/massoA.img /opt/masso_images/current.img
+Create image storage:  
+sudo mkdir /opt/masso_images  
+sudo fallocate -l 20G /opt/masso_images/massoA.img  
+sudo mkfs.vfat -F32 -n MASSOUSB /opt/masso_images/massoA.img  
+sudo ln -sf /opt/masso_images/massoA.img /opt/masso_images/current.img  
 
-Attach TURBO as a USB device:
+Attach TURBO as a USB device:  
 sudo /usr/local/bin/masso-attach
 
 MASSO should now detect a “MASSO USB” drive.
@@ -159,59 +154,57 @@ MASSO should now detect a “MASSO USB” drive.
 
 # 5) Using the TURBO Web Interface
 
-Open:
-http://<pi-ip-address>/
+Open:  
+http://`<pi-ip-address>`
 
-You’ll see:
-
-- FileBrowser Quantum with MASSO-themed UI
-- TURBO Controls sidebar:
-  - Dirty indicator
-  - Sync to USB
+You’ll see:  
+- FileBrowser Quantum with MASSO-themed UI  
+- TURBO Controls sidebar:  
+  - Dirty indicator  
+  - Sync to USB  
   - Attach / Detach
 
-Typical workflow:
-
-1. Upload files
-2. Dirty indicator appears
-3. Click **Sync to USB**
-4. New FAT32 image is built
-5. USB re-attaches
+Typical workflow:  
+1. Upload files  
+2. Dirty indicator appears  
+3. Click **Sync to USB**  
+4. New FAT32 image is built  
+5. USB re-attaches  
 6. MASSO sees the updated files
 
 ---
 
 # 6) Health Checks & Troubleshooting
 
-Status:
-curl -s http://127.0.0.1:8090/status | jq .
+Status:  
+curl -s http://127.0.0.1:8090/status | jq .  
 journalctl -u masso-shim -n 80 --no-pager
 
-USB Gadget state:
-ls /sys/class/udc
-sudo cat /sys/kernel/config/usb_gadget/masso/UDC
+USB Gadget state:  
+ls /sys/class/udc  
+sudo cat /sys/kernel/config/usb_gadget/masso/UDC  
 sudo cat /sys/kernel/config/usb_gadget/masso/functions/mass_storage.usb0/lun.0/file
 
-Signatures:
+Signatures:  
 cat /opt/masso_images/.last_commit.sig
 
-Working signature:
+Working signature:  
 bash -lc "cd /opt/filebrowser/masso; find . -type f -printf '%P\t%T@\t%s\n' | LC_ALL=C sort | sha256sum | cut -d' ' -f1"
 
-If updates don't appear on MASSO:
-- Try Detach → Sync → Attach
-- Check kernel messages:
-  dmesg | tail -n 80
+If updates don't appear on MASSO:  
+- Try Detach → Sync → Attach  
+- Check kernel messages:  
+  dmesg | tail -n 80  
 
 ---
 
 # 7) How the A/B Swap System Works
 
-Working directory:
+Working directory:  
 /opt/filebrowser/masso
 
-Sync to USB performs:
-1. Detach gadget  
+Sync to USB performs:  
+1. Detach gadget   
 2. Build fresh FAT32 image in inactive slot  
 3. `rsync` content into image  
 4. Flip `current.img` symlink  
@@ -222,42 +215,40 @@ Sync to USB performs:
 
 # 8) Tuning & Customization
 
-Change USB image size:
-/usr/local/bin/masso-commit
+Change USB image size:  
+/usr/local/bin/masso-commit  
 
-Theme customization:
-/opt/fbq-theme/masso-forum.css
+Theme customization:  
+/opt/fbq-theme/masso-forum.css  
 
-Sidebar card positioning:
+Sidebar card positioning:  
 /opt/fbq-theme/masso.js
 
 ---
 
 # 9) Security Notes
 
-- `masso-shim` runs only on `localhost:8090`
-- `filebrowser` has restricted sudo access
+- masso-shim runs only on `localhost:8090`  
+- filebrowser has restricted sudo access  
 - Use Nginx auth if exposing this on an untrusted network
 
 ---
 
 # Appendix: Useful Commands
 
-Restart services:
-
-sudo systemctl restart masso-shim
+Restart services:  
+sudo systemctl restart masso-shim  
 sudo systemctl reload nginx
 
-Force rebuild:
-sudo /usr/local/bin/masso-detach
+Force rebuild:  
+sudo /usr/local/bin/masso-detach  
 sudo /usr/local/bin/masso-commit
 
-
-Clear signature:
+Clear signature:  
 sudo rm -f /opt/masso_images/.last_commit.sig
 
-Clear stale loop devices:
-sudo sh -c 'losetup -j /opt/masso_images/massoA.img | cut -d: -f1 | xargs -r losetup -d'
+Clear stale loop devices:  
+sudo sh -c 'losetup -j /opt/masso_images/massoA.img | cut -d: -f1 | xargs -r losetup -d'  
 sudo sh -c 'losetup -j /opt/masso_images/massoB.img | cut -d: -f1 | xargs -r losetup -d'
 
 ---
