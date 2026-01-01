@@ -11,36 +11,20 @@ It uses:
 - A MASSO forum–styled UI theme
 - A Dirty / Sync / Attach / Detach workflow for safety and reliability
 
-No more removing USB sticks.  
-No more walking back and forth.  
+No more remembering the directory structure  
 **MASSO Link — TURBO’d.**
 
 ---
 
-⚠️ Safety Notice – USB Sync While Machining
+⚠️ **Safety Notice – USB Sync While Machining**
 
-This project currently does not detect when MASSO is running a G-code program directly from the USB device.
+This project can detect if MASSO is running a G-code program from TURBO when the TURBO HAT is used.
 
-Never click “Sync to USB” or “Detach” while the machine is cutting.
+Even though a RUN_LOCK has been implemented, it is still recommended that you **never** click “Sync to USB” or “Detach” while the machine is cutting.
 
 Doing so is similar to unplugging a USB stick while MASSO is reading from it. This can cause the job to fail and may damage the part, tooling, or worse.
 
-Treat this device exactly like a normal USB flash drive: only update/sync when the machine is idle and not running a program from USB.
-
----
-
-## Future Safety Enhancement – MASSO Run-State Interlock
-
-The current version does not automatically detect when MASSO is executing a G-code file from USB.
-A future version is planned that will:
-
-Use a dedicated MASSO output (“Program Running” or similar)
-
-Feed that signal into the Raspberry Pi via an optocoupler
-
-Block Sync/Detach while MASSO is running, regardless of network status
-
-This will provide a hardware-level safety interlock that is independent of MASSO firmware or APIs.
+Treat this device exactly like a normal USB flash drive: only update or sync when the machine is idle and not running a program from USB.
 
 ---
 
@@ -56,230 +40,190 @@ This will provide a hardware-level safety interlock that is independent of MASSO
 
 ---
 
-# 0) Hardware & Software Requirements
+## 1) Hardware & Software Requirements
 
-- Raspberry Pi Zero 2 W (recommended)
-- USB data cable (Pi ↔ MASSO or PC)
-- Raspberry Pi-approved power supply
-- Raspberry Pi OS Lite (64‑bit)
-  - Preconfigure using Raspberry Pi Imager (hostname, Wi‑Fi optional, SSH)
+- Raspberry Pi Zero 2 W
+
+- USB SD Card Reader  
+  Example: https://www.amazon.com/dp/B0B9R7H765
+
+- Raspberry Pi-approved power supply  
+  Example: https://www.amazon.com/dp/B00MARDJZ4
+
 - USB Power Blocker  
   Example: https://www.amazon.com/dp/B094G4P3P4
-- Male A ↔ Male A USB cable  
-  Example: https://www.amazon.com/dp/B07BZ2M3WM
-- (Optional) USB Ethernet adapter
+
+- USB data cable (Male Micro ↔ Male A)  
+  Example: https://www.amazon.com/dp/B003YKX6WM
+
 - (Optional) Mini‑HDMI → HDMI cable for console access
 
 ---
 
-# 1) First-Boot System Prep
+## 2) First-Boot System Prep
 
-SSH into the Pi:
-
-user: masso  
-pass: masso
-
-Run:
-
-sudo apt update  
-sudo apt upgrade -y  
-sudo apt install -y nginx dosfstools util-linux rsync unzip python3 dnsmasq hostapd git unzip  
-sudo useradd -r -s /bin/false filebrowser  
-sudo reboot
+- Download the TURBO image (`.img.gz`) file from the GitHub **Releases** page
+- Download the `turbo-config.ini.example` file
+- Download an OS image flasher (balenaEtcher, Raspberry Pi Imager, etc.)
+- Flash the TURBO image to your SD card
 
 ---
 
-# 2) Enable USB Gadget Mode
+## 3) Configure TURBO (turbo-config.ini)
 
-Edit:  
-sudo nano /boot/firmware/config.txt and ensure under `[all]` you have:  
-[all]  
-dtoverlay=dwc2,dr_mode=peripheral
+Edit the configuration file **before first boot**.
 
-sudo nano /boot/firmware/config.txt  
-/boot/firmware/cmdline.txt  
-Add **after `rootwait`**, keeping the file as **one line**:  
-modules-load=dwc2
+1. Open `turbo-config.ini.example`
+2. Edit the values below (do **not** use quotation marks)
 
-Reboot and verify:  
-ls /sys/class/udc  
-Expect something like: 3f980000.usb
+```ini
+HOSTNAME=turbo
+USERNAME=your_username
+PASSWORD=your_password
 
----
+WIFI_SSID=YourWiFiName
+WIFI_PSK=YourWiFiPassword
+WIFI_COUNTRY=US
+```
 
-# 3) Install TURBO Bundle
+- `USERNAME` and `PASSWORD` are for **local Raspberry Pi access**
+- These are **not** the FileBrowser login credentials
 
-Copy the archive to the Pi and extract:  
-sudo tar --no-same-owner -xzf turbo_bundle_v1_0.tar.gz -C / 
-
-Make scripts executable:  
-sudo chmod +x /usr/local/bin/masso-attach \  
-              /usr/local/bin/masso-detach \  
-              /usr/local/bin/masso-commit \  
-              /usr/local/bin/masso-gadget-init \  
-              /usr/local/bin/masso-shim.py \  
-              /usr/local/bin/filebrowser  
-
-Set ownership:  
-sudo chown -R filebrowser:filebrowser /opt/filebrowser /opt/filebrowser/masso /opt/fbq-theme /usr/local/bin/filebrowser
-
-Enable services:  
-sudo systemctl daemon-reload  
-sudo systemctl enable filebrowser  
-sudo systemctl start filebrowser  
-sudo systemctl enable --now masso-shim  
-sudo rm -f /etc/nginx/sites-enabled/default  
-sudo ln -sf /etc/nginx/sites-available/fbq /etc/nginx/sites-enabled/fbq  
-sudo nginx -t && sudo systemctl reload nginx  
+3. Save the file as `turbo-config.ini`
+4. Copy it to the **root of the flashed SD card**
+5. Remove the `.example` extension
 
 ---
 
-# 4) Initialize USB Gadget & Create Initial Image
+## 4) Install SD Card & Boot
 
-One‑time gadget init:  
-sudo /usr/local/bin/masso-gadget-init
+- Insert the SD card into the Raspberry Pi
+- Connect the Pi to the MASSO controller:
 
-Create image storage:  
-sudo mkdir /opt/masso_images  
-sudo fallocate -l 20G /opt/masso_images/massoA.img  
-sudo mkfs.vfat -F32 -n MASSOUSB /opt/masso_images/massoA.img  
-sudo ln -sf /opt/masso_images/massoA.img /opt/masso_images/current.img  
+  `MASSO ↔ Power Blocker ↔ USB Cable ↔ Pi`
 
-Attach TURBO as a USB device:  
-sudo /usr/local/bin/masso-attach
+- **Optional:** Connect a monitor to observe boot output  
+  (The assigned IP address will be displayed once boot is complete)
 
-MASSO should now detect a “MASSO USB” drive.
+> **Note:** First boot can take several minutes. This is normal.
 
 ---
 
-# 5) Using the TURBO Web Interface
+## 5) Using the TURBO Web Interface
 
-Open:  
-http://`<pi-ip-address>`
+Open:
 
-You’ll see:  
-- FileBrowser Quantum with MASSO-themed UI  
-- TURBO Controls sidebar:  
-  - Dirty indicator  
-  - Sync to USB  
+```
+http://<pi-ip-address>
+```
+
+Default web login:
+
+- **Username:** admin  
+- **Password:** admin  
+
+You’ll see:
+
+- FileBrowser Quantum with MASSO-themed UI
+- TURBO Controls sidebar:
+  - Dirty indicator
+  - Sync to USB
   - Attach / Detach
 
-Typical workflow:  
-1. Upload files  
-2. Dirty indicator appears  
-3. Click **Sync to USB**  
-4. New FAT32 image is built  
-5. USB re-attaches  
+Typical workflow:
+
+1. Upload files
+2. Dirty indicator appears
+3. Click **Sync to USB**
+4. New FAT32 image is built
+5. USB re-attaches
 6. MASSO sees the updated files
 
 ---
 
-# 6) Health Checks & Troubleshooting
+## 6) How the A/B Swap System Works
 
-Status:  
-curl -s http://127.0.0.1:8090/status | jq .  
-journalctl -u masso-shim -n 80 --no-pager
+Working directory:
 
-USB Gadget state:  
-ls /sys/class/udc  
-sudo cat /sys/kernel/config/usb_gadget/masso/UDC  
-sudo cat /sys/kernel/config/usb_gadget/masso/functions/mass_storage.usb0/lun.0/file
-
-Signatures:  
-cat /opt/masso_images/.last_commit.sig
-
-Working signature:  
-bash -lc "cd /opt/filebrowser/masso; find . -type f -printf '%P\t%T@\t%s\n' | LC_ALL=C sort | sha256sum | cut -d' ' -f1"
-
-If updates don't appear on MASSO:  
-- Try Detach → Sync → Attach  
-- Check kernel messages:  
-  dmesg | tail -n 80  
-
----
-
-# 7) How the A/B Swap System Works
-
-Working directory:  
+```
 /opt/filebrowser/masso
+```
 
-Sync to USB performs:  
-1. Detach gadget   
-2. Build fresh FAT32 image in inactive slot  
-3. `rsync` content into image  
-4. Flip `current.img` symlink  
-5. Write new signature  
-6. Re-attach gadget  
+**Sync to USB** performs:
+
+1. Detach USB gadget
+2. Build fresh FAT32 image in inactive slot
+3. `rsync` content into image
+4. Flip `current.img` symlink
+5. Write new signature
+6. Re-attach USB gadget
 
 ---
 
-# 8) Tuning & Customization
+## 7) Tuning & Customization
 
-Change USB image size:  
-/usr/local/bin/masso-commit  
+Change USB image size:
 
-Theme customization:  
-/opt/fbq-theme/masso-forum.css  
+```
+/usr/local/bin/masso-commit
+```
 
-Sidebar card positioning:  
+Theme customization:
+
+```
+/opt/fbq-theme/masso-forum.css
+```
+
+Sidebar card positioning:
+
+```
 /opt/fbq-theme/masso.js
+```
 
 ---
 
-# 9) Security Notes
+## 8) Security Notes
 
-- masso-shim runs only on `localhost:8090`  
-- filebrowser has restricted sudo access  
-- Use Nginx auth if exposing this on an untrusted network
+- `masso-shim` runs only on `localhost:8090`
+- FileBrowser has restricted sudo access
+- Use Nginx authentication if exposing TURBO on an untrusted network
 
 ---
 
-# Appendix: Useful Commands
+## Appendix: Useful Commands
 
-Restart services:  
-sudo systemctl restart masso-shim  
+Restart services:
+
+```bash
+sudo systemctl restart masso-shim
 sudo systemctl reload nginx
+```
 
-Force rebuild:  
-sudo /usr/local/bin/masso-detach  
+Force rebuild:
+
+```bash
+sudo /usr/local/bin/masso-detach
 sudo /usr/local/bin/masso-commit
+```
 
-Clear signature:  
+Clear signature:
+
+```bash
 sudo rm -f /opt/masso_images/.last_commit.sig
+```
 
-Clear stale loop devices:  
-sudo sh -c 'losetup -j /opt/masso_images/massoA.img | cut -d: -f1 | xargs -r losetup -d'  
+Clear stale loop devices:
+
+```bash
+sudo sh -c 'losetup -j /opt/masso_images/massoA.img | cut -d: -f1 | xargs -r losetup -d'
 sudo sh -c 'losetup -j /opt/masso_images/massoB.img | cut -d: -f1 | xargs -r losetup -d'
+```
 
 ---
 
-# Licensing & Attribution
+## License
 
-TURBO is released under the **MIT License**.  
-You may use, modify, distribute, and include this software in commercial or closed-source projects.
+TURBO is released under the **MIT License**.
 
-Third‑party components (FileBrowser Quantum, Nginx, standard Linux tools) retain their original licenses.
-
----
-
-# MIT License
-
-Copyright (c) 2025 Jeff Akerson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-IN THE SOFTWARE.
+You may use, modify, and distribute this software freely, including for commercial use.  
+See the [`LICENSE`](LICENSE) file for full details.

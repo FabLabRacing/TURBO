@@ -1,0 +1,12 @@
+# TURBO first-boot config (edit these)
+# The username and password set in this file are for the Linux login, Not the filebrowser website
+
+HOSTNAME=set this to whatever you want for the device name
+USERNAME=set this to whatever you want for a username
+PASSWORD=set this to whatever you want for a password
+
+# Set to match your WiFi setup
+
+WIFI_SSID=set to your wireless SSID
+WIFI_PSK=set to your wireless password
+WIFI_COUNTRY=US (or whatever country you are in)
