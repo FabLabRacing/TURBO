@@ -33,9 +33,9 @@ Treat this device exactly like a normal USB flash drive: only update or sync whe
 - Upload/delete files through a MASSO-themed web UI
 - Automatic A/B FAT32 image build and swap
 - “Dirty” indicator shows changed vs. committed files
-- One‑click Sync to USB
+- One-click Sync to USB
 - Reliable USB re-enumeration with Attach/Detach
-- Lightweight and CNC‑friendly
+- Lightweight and CNC-friendly
 - Runs entirely on the Pi — no cloud dependencies
 
 ---
@@ -56,7 +56,7 @@ Treat this device exactly like a normal USB flash drive: only update or sync whe
 - USB data cable (Male Micro ↔ Male A)  
   Example: https://www.amazon.com/dp/B003YKX6WM
 
-- (Optional) Mini‑HDMI → HDMI cable for console access
+- (Optional) Mini-HDMI → HDMI cable for console access
 
 ---
 
@@ -141,7 +141,76 @@ Typical workflow:
 
 ---
 
-## 6) How the A/B Swap System Works
+## 6) Troubleshooting & Remote Access (Windows Users)
+
+> **Reminder:** Linux is case sensitive.  
+> `MyFile.txt` is not the same as `myfile.txt`.
+
+### Before You Start
+
+To make setup and troubleshooting easier on Windows, install the following free tools.
+
+---
+
+### PuTTY — SSH Terminal
+
+**What it does:**  
+PuTTY lets you open a remote command-line session to the Raspberry Pi over SSH.
+
+**Download:**  
+https://www.putty.org/
+
+**How to use PuTTY:**
+
+1. Open PuTTY
+2. Host Name: `your_hostname` (or use the Pi’s IP address)
+3. Click **Open**
+4. Login when prompted:
+   - Username: `your_username`
+   - Password: `your_password`
+
+> Tip: Paste commands by **right-clicking** inside the PuTTY window.
+
+---
+
+### WinSCP — File Transfer
+
+**What it does:**  
+WinSCP lets you drag and drop files between your Windows PC and the Raspberry Pi.
+
+**Download:**  
+https://winscp.net/eng/download.php
+
+**How to use WinSCP:**
+
+1. Open WinSCP
+2. Connection settings:
+   - File protocol: **SCP**
+   - Hostname: `your_hostname`
+   - Username: `your_username`
+   - Password: `your_password`
+3. Click **Login**
+
+---
+
+### Notes on `nano` (Linux Text Editor)
+
+`nano` is a simple, beginner-friendly text editor commonly used on Linux systems.
+
+Common commands:
+
+- **Save:** `CTRL + O`, then press `ENTER`
+- **Exit:** `CTRL + X` (nano will prompt to save if needed)
+- **Search:** `CTRL + W`
+- **Undo:** `ALT + U`
+- **Redo:** `ALT + E`
+- **Cut line:** `CTRL + K`
+- **Paste line:** `CTRL + U`
+- **Move cursor:** Arrow keys
+
+---
+
+## 7) How the A/B Swap System Works
 
 Working directory:
 
@@ -160,7 +229,7 @@ Working directory:
 
 ---
 
-## 7) Tuning & Customization
+## 8) Tuning & Customization
 
 Change USB image size:
 
@@ -182,7 +251,7 @@ Sidebar card positioning:
 
 ---
 
-## 8) Security Notes
+## 9) Security Notes
 
 - `masso-shim` runs only on `localhost:8090`
 - FileBrowser has restricted sudo access
