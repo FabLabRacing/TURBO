@@ -5,8 +5,25 @@ HOSTNAME=set this to whatever you want for the device name
 USERNAME=set this to whatever you want for a username
 PASSWORD=set this to whatever you want for a password
 
-# Set to match your WiFi setup
+# Set to match your WiFi setup (For Client Mode)
 
 WIFI_SSID=set to your wireless SSID
 WIFI_PSK=set to your wireless password
 WIFI_COUNTRY=US (or whatever country you are in)
+
+# =========================
+# Network / Client Mode
+# =========================
+[network]
+mode=ap     # Set to either client or ap
+
+[ap]
+ssid=PiThumbDrive
+pass=ChangeMe123
+ip=10.10.10.1
+cidr=24
+dhcp_start=10.10.10.10
+dhcp_end=10.10.10.200
+lease=24h
+channel=6
+country=US

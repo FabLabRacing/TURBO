@@ -1,17 +1,19 @@
 # TURBO - Thumbdrive Unified Remote Browser Object
+
 ### A MASSO-themed, browser-based replacement for USB thumb drives
 
 TURBO transforms a **Raspberry Pi Zero 2 W** into a **network-managed USB mass-storage device** that can upload files directly to your **MASSO CNC controller**.
 
 It uses:
 
-- FileBrowser Quantum (FBQ) for a clean web interface
-- Custom scripts for A/B FAT32 image generation
-- USB Gadget Mode so the Pi emulates a real USB thumb drive
-- A MASSO forum–styled UI theme
-- A Dirty / Sync / Attach / Detach workflow for safety and reliability
+* FileBrowser Quantum (FBQ) for a clean web interface
+* Custom scripts for A/B FAT32 image generation
+* USB Gadget Mode so the Pi emulates a real USB thumb drive
+* A MASSO forum–styled UI theme
+* A Dirty / Sync / Attach / Detach workflow for safety and reliability
+* **Selectable AP / Client networking modes (boot-time and on-demand)**
 
-No more remembering the directory structure  
+No more remembering the directory structure
 **MASSO Link — TURBO’d.**
 
 ---
@@ -30,42 +32,36 @@ Treat this device exactly like a normal USB flash drive: only update or sync whe
 
 ## Features
 
-- Upload/delete files through a MASSO-themed web UI
-- Automatic A/B FAT32 image build and swap
-- “Dirty” indicator shows changed vs. committed files
-- One-click Sync to USB
-- Reliable USB re-enumeration with Attach/Detach
-- Lightweight and CNC-friendly
-- Runs entirely on the Pi — no cloud dependencies
+* Upload/delete files through a MASSO-themed web UI
+* Automatic A/B FAT32 image build and swap
+* “Dirty” indicator shows changed vs. committed files
+* One-click Sync to USB
+* Reliable USB re-enumeration with Attach/Detach
+* **Selectable networking modes:**
+
+  * **Client Mode:** joins your existing Wi-Fi network
+  * **AP Mode:** TURBO creates its own Wi-Fi network (no infrastructure required)
+* Deterministic, stateless network switching
+* Runs entirely on the Pi — no cloud dependencies
 
 ---
 
-## 1) Hardware & Software Requirements
+## 1) Supported Hardware
 
-- Raspberry Pi Zero 2 W
+* **Raspberry Pi Zero 2 W** (primary and supported target)
 
-- USB SD Card Reader  
-  Example: https://www.amazon.com/dp/B0B9R7H765
-
-- Raspberry Pi-approved power supply  
-  Example: https://www.amazon.com/dp/B00MARDJZ4
-
-- USB Power Blocker  
-  Example: https://www.amazon.com/dp/B094G4P3P4
-
-- USB data cable (Male Micro ↔ Male A)  
-  Example: https://www.amazon.com/dp/B003YKX6WM
-
-- (Optional) Mini-HDMI → HDMI cable for console access
+> Other Raspberry Pi models (Pi 3, Pi 4, etc.) may boot for development or testing, but **USB gadget mode and Ethernet operation are not supported** in the mainline TURBO project.
+>
+> TURBO is intentionally designed as a **wireless USB gadget appliance**. Ethernet-capable variants should be considered experimental or forked projects.
 
 ---
 
 ## 2) First-Boot System Prep
 
-- Download the TURBO image (`.img.gz`) file from the GitHub **Releases** page
-- Download the `turbo-config.ini.example` file
-- Download an OS image flasher (balenaEtcher, Raspberry Pi Imager, etc.)
-- Flash the TURBO image to your SD card
+* Download the TURBO image (`.img.gz`) file from the GitHub **Releases** page
+* Download the `turbo-config.ini.example` file
+* Download an OS image flasher (balenaEtcher, Raspberry Pi Imager, etc.)
+* Flash the TURBO image to your SD card
 
 ---
 
@@ -84,10 +80,47 @@ PASSWORD=your_password
 WIFI_SSID=YourWiFiName
 WIFI_PSK=YourWiFiPassword
 WIFI_COUNTRY=US
+
+[network]
+mode=client   # or: ap
+
+[ap]
+# Wi-Fi network name broadcast by TURBO in AP mode
+ssid=PiThumbDrive
+
+# WPA2 passphrase for the AP (8+ characters)
+pass=ChangeMe123
+
+# Static IP address assigned to TURBO in AP mode
+ip=10.10.10.1
+
+# Network mask in CIDR notation (24 = 255.255.255.0)
+cidr=24
+
+# DHCP address pool start
+# First IP that will be handed out to clients
+dhcp_start=10.10.10.10
+
+# DHCP address pool end
+# Last IP that will be handed out to clients
+dhcp_end=10.10.10.200
+
+# DHCP lease duration
+# How long a client keeps its IP before renewal
+lease=24h
+
+# Wi-Fi channel used by the AP
+# Choose a clear channel for best reliability
+channel=6
+
+# Regulatory country code (affects allowed channels and power)
+country=US
 ```
 
-- `USERNAME` and `PASSWORD` are for **local Raspberry Pi access**
-- These are **not** the FileBrowser login credentials
+* `USERNAME` and `PASSWORD` are for **local Raspberry Pi access**
+* These are **not** the FileBrowser login credentials
+* `mode=client` joins your existing Wi-Fi network
+* `mode=ap` makes TURBO create its own Wi-Fi network (SSID: **PiThumbDrive**)
 
 3. Save the file as `turbo-config.ini`
 4. Copy it to the **root of the flashed SD card**
@@ -95,21 +128,55 @@ WIFI_COUNTRY=US
 
 ---
 
-## 4) Install SD Card & Boot
+## 4) Network Architecture (AP / Client)
 
-- Insert the SD card into the Raspberry Pi
-- Connect the Pi to the MASSO controller:
+TURBO networking is **explicit, deterministic, and stateless**.
+
+* On boot, TURBO reads `/etc/turbo/turbo-config.ini`
+* The requested mode is applied once by `turbo-net-apply`
+* No background daemon continuously enforces network state
+
+### AP Mode
+
+* TURBO creates its own Wi-Fi network (SSID: **PiThumbDrive**)
+* Clients receive an IP address automatically
+* FileBrowser is reachable without external infrastructure
+* NetworkManager is **runtime-masked** to prevent late-boot interference
+* All AP configuration lives in RAM (`/run`)
+
+### Client Mode
+
+* NetworkManager manages Wi-Fi normally
+* TURBO joins your existing network
+* No AP services are running
+
+You may switch modes manually at any time:
+
+```bash
+sudo turbo-net-apply --ap
+sudo turbo-net-apply --client
+```
+
+> Note: If the mode is changed manually without editing the config file, the **next reboot will re-apply the configured mode**.
+
+---
+
+## 5) Install SD Card & Boot
+
+* Insert the SD card into the Raspberry Pi
+
+* Connect the Pi to the MASSO controller:
 
   `MASSO ↔ Power Blocker ↔ USB Cable ↔ Pi`
 
-- **Optional:** Connect a monitor to observe boot output  
+* **Optional:** Connect a monitor to observe boot output
   (The assigned IP address will be displayed once boot is complete)
 
 > **Note:** First boot can take several minutes. This is normal.
 
 ---
 
-## 5) Using the TURBO Web Interface
+## 6) Using the TURBO Web Interface
 
 Open:
 
@@ -119,16 +186,17 @@ http://<pi-ip-address>
 
 Default web login:
 
-- **Username:** admin  
-- **Password:** admin  
+* **Username:** admin
+* **Password:** admin
 
 You’ll see:
 
-- FileBrowser Quantum with MASSO-themed UI
-- TURBO Controls sidebar:
-  - Dirty indicator
-  - Sync to USB
-  - Attach / Detach
+* FileBrowser Quantum with MASSO-themed UI
+* TURBO Controls sidebar:
+
+  * Dirty indicator
+  * Sync to USB
+  * Attach / Detach
 
 Typical workflow:
 
@@ -141,158 +209,9 @@ Typical workflow:
 
 ---
 
-## 6) Troubleshooting & Remote Access (Windows Users)
-
-> **Reminder:** Linux is case sensitive.  
-> `MyFile.txt` is not the same as `myfile.txt`.
-
-### Before You Start
-
-To make setup and troubleshooting easier on Windows, install the following free tools.
-
----
-
-### PuTTY — SSH Terminal
-
-**What it does:**  
-PuTTY lets you open a remote command-line session to the Raspberry Pi over SSH.
-
-**Download:**  
-https://www.putty.org/
-
-**How to use PuTTY:**
-
-1. Open PuTTY
-2. Host Name: `your_hostname` (or use the Pi’s IP address)
-3. Click **Open**
-4. Login when prompted:
-   - Username: `your_username`
-   - Password: `your_password`
-
-> Tip: Paste commands by **right-clicking** inside the PuTTY window.
-
----
-
-### WinSCP — File Transfer
-
-**What it does:**  
-WinSCP lets you drag and drop files between your Windows PC and the Raspberry Pi.
-
-**Download:**  
-https://winscp.net/eng/download.php
-
-**How to use WinSCP:**
-
-1. Open WinSCP
-2. Connection settings:
-   - File protocol: **SCP**
-   - Hostname: `your_hostname`
-   - Username: `your_username`
-   - Password: `your_password`
-3. Click **Login**
-
----
-
-### Notes on `nano` (Linux Text Editor)
-
-`nano` is a simple, beginner-friendly text editor commonly used on Linux systems.
-
-Common commands:
-
-- **Save:** `CTRL + O`, then press `ENTER`
-- **Exit:** `CTRL + X` (nano will prompt to save if needed)
-- **Search:** `CTRL + W`
-- **Undo:** `ALT + U`
-- **Redo:** `ALT + E`
-- **Cut line:** `CTRL + K`
-- **Paste line:** `CTRL + U`
-- **Move cursor:** Arrow keys
-
----
-
-## 7) How the A/B Swap System Works
-
-Working directory:
-
-```
-/opt/filebrowser/masso
-```
-
-**Sync to USB** performs:
-
-1. Detach USB gadget
-2. Build fresh FAT32 image in inactive slot
-3. `rsync` content into image
-4. Flip `current.img` symlink
-5. Write new signature
-6. Re-attach USB gadget
-
----
-
-## 8) Tuning & Customization
-
-Change USB image size:
-
-```
-/usr/local/bin/masso-commit
-```
-
-Theme customization:
-
-```
-/opt/fbq-theme/masso-forum.css
-```
-
-Sidebar card positioning:
-
-```
-/opt/fbq-theme/masso.js
-```
-
----
-
-## 9) Security Notes
-
-- `masso-shim` runs only on `localhost:8090`
-- FileBrowser has restricted sudo access
-- Use Nginx authentication if exposing TURBO on an untrusted network
-
----
-
-## Appendix: Useful Commands
-
-Restart services:
-
-```bash
-sudo systemctl restart masso-shim
-sudo systemctl reload nginx
-```
-
-Force rebuild:
-
-```bash
-sudo /usr/local/bin/masso-detach
-sudo /usr/local/bin/masso-commit
-```
-
-Clear signature:
-
-```bash
-sudo rm -f /opt/masso_images/.last_commit.sig
-```
-
-Clear stale loop devices:
-
-```bash
-sudo sh -c 'losetup -j /opt/masso_images/massoA.img | cut -d: -f1 | xargs -r losetup -d'
-sudo sh -c 'losetup -j /opt/masso_images/massoB.img | cut -d: -f1 | xargs -r losetup -d'
-```
-
----
-
 ## License
 
 TURBO is released under the **MIT License**.
 
-You may use, modify, and distribute this software freely, including for commercial use.  
+You may use, modify, and distribute this software freely, including for commercial use.
 See the [`LICENSE`](LICENSE) file for full details.
